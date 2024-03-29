@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Android Theme XML Injection</title>
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/default.min.css">
+    <style>
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            white-space: -moz-pre-wrap;
+            white-space: -pre-wrap;
+            white-space: -o-pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div style="max-width: 1200px; margin: 0 auto;">
+        <h1>Android Theme XML Injection</h1>
+
+        <div style="display: flex; flex-direction: row;gap: 15px;">
+            <div style="flex: 1;display: flex; flex-direction: column; height: 80vh;">
+                <label>Theme</label>
+                <textarea id="theme" style="min-height: 40%;width: 100%;"></textarea>
+                <label style="margin-top: 10px;">Color</label>
+                <textarea id="color" style="min-height: 40%;width: 100%;"></textarea>
+            </div>
+            <div style="flex: 1;display: flex; flex-direction: column;">
+                <label>Output</label>
+                <pre style="height: calc(80% + 18px + 1rem);display: flex;flex-direction: column;">
+                    <code class="language-xml" style="flex: 1;"></code>
+                </pre>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/xml.min.js"></script>
+
+    <script>
+        const theme = document.getElementById('theme');
+        const color = document.getElementById('color');
+        const output = document.querySelector('code');
+
+        const upload = () => {
+            try {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(theme.value, "application/xml");
+                const root = doc.documentElement;
+                const items = root.querySelectorAll('item');
+
+                let map = Array.from(items).reduce((acc, item) => {
+                    acc[item.getAttribute('name')] = item.textContent.replace('@color/', '');
+                    return acc;
+                }, {});
+
+                const colorParser = new DOMParser();
+                const colorDoc = colorParser.parseFromString(color.value, "application/xml");
+                const colorRoot = colorDoc.documentElement;
+                const colorItems = colorRoot.querySelectorAll('color');
+
+                let colorMap = Array.from(colorItems).reduce((acc, item) => {
+                    acc[item.getAttribute('name')] = item.textContent;
+                    return acc;
+                }, {});
+
+                for (const key in map) {
+                    if (Object.hasOwnProperty.call(map, key)) {
+                        const element = map[key];
+                        if (colorMap[element]) {
+                            map[key] = colorMap[element];
+                        }
+                    }
+                }
+
+                let result = Object.entries(map).map(([key, value]) => {
+                    return `        <item name="${key}">${value}</item>`;
+                }).join('\n');
+
+                output.textContent = `<resources>\n    <style name="AppTheme" parent="Theme.Default">\n${result}\n    </style>\n</resources>`;
+            } catch (e) {
+                console.error("Theme:", e);
+            }
+        }
+
+        theme.addEventListener('input', upload);
+        color.addEventListener('input', upload)
+
+        hljs.highlightAll();
+    </script>
+
+</body>
+
+</html>
